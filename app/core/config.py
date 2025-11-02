@@ -10,5 +10,8 @@ class Settings:
     CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./data/embeddings")
     MODEL_NAME: str = os.getenv("MODEL_NAME", "Phi-3-mini-4k-instruct")
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./users.db")
+    # --- Новое поле для ID админов ---
+    ADMIN_USER_IDS: str = os.getenv("ADMIN_USER_IDS", "123456789")
+    # --- /Новое поле ---
 
 settings = Settings()
