@@ -6,6 +6,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import chromadb
 from app.core.config import settings
+import logging
+
+# Настраиваем логгер для этого модуля
+logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self):
@@ -43,7 +47,9 @@ class RAGService:
                 show_progress=True
             )
         except Exception as e:
-            print(f"Ошибка при загрузке индекса: {e}")
+            # --- Заменено print на logger.error ---
+            logger.error(f"Ошибка при загрузке индекса: {e}")
+            # --- /Заменено print на logger.error ---
             self.index = None
 
     async def query(self, user_query: str) -> str:
@@ -56,7 +62,7 @@ class RAGService:
             response_mode="tree_summarize"
         )
         response = await query_engine.aquery(user_query)
-        
+
         # Извлечение метаданных для ссылок
         source_nodes = response.source_nodes
         sources = []
