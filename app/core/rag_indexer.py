@@ -6,6 +6,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from app.core.config import settings
 import chromadb
 
+# Настраиваем логгер для этого модуля
 logger = logging.getLogger(__name__)
 
 class RAGIndexer:
@@ -61,14 +62,18 @@ class RAGIndexer:
             return index
 
         except Exception as e:
+            # --- Заменено print на logger.error ---
             logger.error(f"Ошибка при индексации: {e}")
+            # --- /Заменено print на logger.error ---
             raise e
 
 if __name__ == "__main__":
     # Пример использования. Запускать отдельно, например, `python -m app.core.rag_indexer`
     import sys
     if len(sys.argv) != 2:
-        print("Использование: python -m app.core.rag_indexer <путь_к_документам>")
+        # --- Заменено print на logger.error ---
+        logger.error("Использование: python -m app.core.rag_indexer <путь_к_документам>")
+        # --- /Заменено print на logger.error ---
         sys.exit(1)
 
     docs_path = sys.argv[1]
