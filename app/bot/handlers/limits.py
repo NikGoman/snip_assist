@@ -2,6 +2,9 @@ from aiogram import Router
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from app.services.query_service import QueryService
+# --- Добавлен импорт settings ---
+from app.core.config import settings
+# --- /Добавлен импорт settings ---
 
 router = Router()
 service = QueryService()
@@ -33,7 +36,9 @@ async def cmd_limit(message: Message):
         return
 
     used_today = user_db.queries_used_today
-    max_free = settings.FREE_QUERIES_PER_DAY # Импортируем settings из config
+    # --- Используем импортированный settings ---
+    max_free = settings.FREE_QUERIES_PER_DAY
+    # --- /Используем импортированный settings ---
 
     remaining = max(0, max_free - used_today)
 
