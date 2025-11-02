@@ -12,7 +12,7 @@ AI-ассистент для прорабов и технических дире
 - **Готов к продакшену** и интеграции в CI/CD
 
 ## Архитектура репозитория
-
+```
 construction_rag_bot/
 ├── app/                    # Основной код приложения
 │   ├── __init__.py
@@ -47,7 +47,7 @@ construction_rag_bot/
 ├── requirements.txt        # Зависимости Python
 ├── pyproject.toml          # Метаданные проекта (опционально)
 └── README.md               # Этот файл
-
+```
 ## Запуск
 
 1. Установите зависимости: `pip install -r requirements.txt`
