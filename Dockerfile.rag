@@ -1,0 +1,34 @@
+# Используем официальный образ Python 3.11 (или новее) slim для минимального размера
+# Для PyTorch (если используется CPU) можно использовать стандартный образ
+# Если нужна GPU-версия PyTorch, используйте nvidia/cuda:XX.X-devel-ubuntuXX.XX и установите PyTorch через pip с флагом --index-url
+FROM python:3.11-slim
+
+# Устанавливаем рабочую директорию внутри контейнера
+WORKDIR /app
+
+# Устанавливаем системные зависимости, необходимые для компиляции Python-пакетов
+# особенно для torch, transformers, llama-index, chromadb
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем файл зависимостей в контейнер
+COPY requirements.rag.txt .
+
+# Устанавливаем зависимости Python
+# Устанавливаем torch первым, так как он может быть зависимостью для других пакетов
+# или использовать --find-links, если нужно явно указать источник для CPU/GPU
+# Пример для CPU PyTorch: pip install torch --index-url https://download.pytorch.org/whl/cpu
+# В requirements.rag.txt уже указан torch, pip установит его вместе с остальными
+RUN pip install --no-cache-dir -r requirements.rag.txt
+
+# Копируем исходный код RAG-сервиса в контейнер
+COPY rag/ ./rag/
+
+# Указываем команду для запуска RAG-сервиса
+# Запускаем uvicorn, указывая модуль и приложение
+# Хост 0.0.0.0 позволяет контейнеру принимать соединения извне
+# Порт 8001 соответствует SERVICE_PORT в rag/config.py
+CMD ["uvicorn", "rag.main:app", "--host", "0.0.0.0", "--port", "8001"]
