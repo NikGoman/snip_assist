@@ -1,0 +1,23 @@
+# requirements.api.txt
+# Зависимости для сервиса API
+
+# FastAPI и ASGI сервер
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+
+# Асинхронный HTTP клиент для взаимодействия с RAG-сервисом
+httpx>=0.25.0
+
+# Pydantic для валидации данных (часто уже входит в FastAPI, но указываем явно для ясности)
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# python-dotenv для загрузки переменных окружения из .env файлов
+python-dotenv>=1.0.0
+
+# (Опционально) SQLAlchemy, если API сам будет работать с базой данных лимитов
+# sqlalchemy>=2.0.0
+# (Опционально) Драйвер базы данных, например:
+# psycopg2-binary>=2.9.0  # для PostgreSQL
+# или
+# aiomysql>=0.2.0  # для MySQL (если нужен асинхронный доступ)
