@@ -1,0 +1,26 @@
+# Используем официальный образ Python 3.11 (или новее) slim для минимального размера
+# Для CPU-версии PyTorch можно использовать стандартный образ
+# Если нужна GPU-версия PyTorch, используйте nvidia/cuda:XX.X-devel-ubuntuXX.XX и установите PyTorch через pip с флагом --index-url
+FROM python:3.11-slim
+
+# Устанавливаем рабочую директорию внутри контейнера
+WORKDIR /app
+
+# Устанавливаем системные зависимости, необходимые для компиляции Python-пакетов (например, aiosqlite, httpx)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем файл зависимостей в контейнер
+COPY requirements.bot.txt .
+
+# Устанавливаем зависимости Python
+RUN pip install --no-cache-dir -r requirements.bot.txt
+
+# Копируем исходный код бота в контейнер
+COPY app/ ./app/
+
+# Указываем команду для запуска бота
+# Точка входа - модуль app.main
+CMD ["python", "-m", "app.main"]
