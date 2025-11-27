@@ -10,13 +10,11 @@ llamaindex>=0.12.4
 llamaindex-vector-stores-chroma>=0.4.2
 # Выбор LLM зависит от реализации. Мы использовали TransformersLLM.
 llamaindex-llms-transformers>=0.3.0
-# Если бы использовался llama-cpp-python, было бы:
-# llamaindex-llms-llama-cpp>=0.3.0 # (или другая версия)
-
-# HuggingFace и PyTorch для LLM и эмбеддингов (если используется TransformersLLM и HF эмбеддинги)
-transformers>=4.35.0
-torch>=2.1.0 # Убедитесь, что версия соответствует вашему окружению (CPU/GPU)
-# sentence-transformers>=2.2.0 # Может быть установлен как зависимость llama-index, но можно указать явно
+# Зависимости torch и transformers будут установлены автоматически
+# как зависимость от llamaindex-llms-transformers и самого llamaindex.
+# Указывать их вручную может быть опасно из-за конфликтов версий.
+# torch>=2.1.0 # <-- УБРАНО
+# transformers>=4.35.0 # <-- УБРАНО
 
 # Pydantic для валидации данных
 pydantic>=2.5.0
@@ -31,4 +29,4 @@ python-dotenv>=1.0.0
 
 # Убедитесь, что зависимости LlamaIndex (например, chromadb) также установлены.
 # Они могут быть включены как транзитивные зависимости, но явное указание может повысить стабильность.
-chromadb>=0.4.0
+# chromadb>=0.4.0 # <-- УБРАНО, так как llama-index-vector-stores-chroma уже зависит от chromadb
