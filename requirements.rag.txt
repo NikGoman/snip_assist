@@ -6,12 +6,12 @@
 # uvicorn[standard]>=0.32.0
 
 # LlamaIndex и его компоненты
-llamaindex>=0.12.4
-llamaindex-vector-stores-chroma>=0.4.2
+llama-index>=0.12.4
+llama-index-vector-stores-chroma>=0.4.2
 # Выбор LLM зависит от реализации. Мы использовали TransformersLLM.
-llamaindex-llms-transformers>=0.3.0
+llama-index-llms-huggingface>=0.2.0
 # Если бы использовался llama-cpp-python, было бы:
-# llamaindex-llms-llama-cpp>=0.3.0 # (или другая версия)
+# llama-index-llms-llama-cpp>=0.3.0 # (или другая версия)
 
 # Pydantic для валидации данных
 # pydantic>=2.5.0
