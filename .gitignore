@@ -147,6 +147,7 @@ data/chroma/
 *.db-journal
 
 # Local environment variable files (ensure .env.example is committed)
+!.env.example
 .env.local
 .env.prod
 .env.staging
