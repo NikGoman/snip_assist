@@ -18,7 +18,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.llms.transformers import TransformersLLM
+from llama_index.llms.huggingface import HuggingFaceLLM as TransformersLLM
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import chromadb
