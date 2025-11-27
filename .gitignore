@@ -98,7 +98,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -147,12 +146,14 @@ data/chroma/
 *.db-journal
 
 # Local environment variable files (ensure .env.example is committed)
+# Ignore all files starting with .env
+.env*
+# But explicitly DO track .env.example
 !.env.example
+# And ignore the local .env.local file
 .env.local
 .env.prod
 .env.staging
-# If you have a general .env file that's local
-.env
 
 # Artifacts from Docker build (though build context should be managed carefully)
 *.tar
