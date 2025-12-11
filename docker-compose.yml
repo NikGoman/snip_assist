@@ -1,0 +1,86 @@
+# docker-compose.yml
+# Описание сервисов для запуска проекта snip_assist
+
+version: '3.8' # Используем относительно новую версию для поддержки функций
+
+services:
+  # --- RAG Сервис ---
+  rag:
+    # Указывает, что образ нужно собрать из Dockerfile.rag
+    build:
+      context: . # Контекст сборки - корень проекта
+      dockerfile: Dockerfile.rag # Имя файла Dockerfile
+    container_name: snip_assist_rag # Удобное имя контейнера
+    # Зависимости не требуются, так как это основной источник данных
+    # Указывает порт, на котором сервис слушает *внутри* контейнера,
+    # и публикует его на хосте (опционально, для дебага)
+    # Внутри compose сети контейнеры общаются по внутреннему порту
+    ports:
+      - "8001:8001" # Публикует порт 8001 контейнера на порт 8001 хоста (опционально)
+    # Переменные окружения из файла .env.local
+    env_file:
+      - .env.local
+    # Тома для хранения данных Chroma и логов
+    volumes:
+      - ./data/chroma:/app/data/chroma # Папка с векторной базой
+      - ./logs:/app/logs              # Папка для логов RAG-сервиса
+    # Сеть, к которой подключается сервис
+    networks:
+      - buildnet
+    # Команда переопределит CMD из Dockerfile, если нужно
+    # command: ["uvicorn", "rag.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    # Убедимся, что сервис перезапускается при ошибках
+    restart: unless-stopped
+
+  # --- API Сервис ---
+  api:
+    # Указывает, что образ нужно собрать из Dockerfile.api
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: snip_assist_api
+    # Зависимость: api должен стартовать *после* rag
+    depends_on:
+      - rag
+    # Порт API-сервиса
+    ports:
+      - "8000:8000" # Публикует порт 8000 контейнера на порт 8000 хоста (опционально)
+    env_file:
+      - .env.local
+    volumes:
+      - ./logs:/app/logs # Папка для логов API-сервиса
+    networks:
+      - buildnet
+    # restart: unless-stopped # Опционально, если API также должен перезапускаться
+
+  # --- Bot Сервис ---
+  bot:
+    # Указывает, что образ нужно собрать из Dockerfile.bot
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: snip_assist_bot
+    # Зависимость: bot должен стартовать *после* api
+    depends_on:
+      - api
+      - rag
+    # Бот не публикует порт наружу, он опрашивает Telegram API
+    # ports: # Не указываем порты для бота
+    env_file:
+      - .env.local
+    volumes:
+      - ./logs:/app/logs # Папка для логов бота
+    networks:
+      - buildnet
+    # restart: unless-stopped # Опционально, если бот также должен перезапускаться
+
+# --- Сеть ---
+networks:
+  buildnet:
+    driver: bridge # Используем стандартный драйвер bridge для внутренней коммуникации
+
+# --- Тома (опционально, если нужно определить их здесь явно) ---
+# volumes:
+#   chroma_data:
+#   logs:
+# В данном случае используем анонимные/именованные тома compose, указывая пути в volumes: сервисов

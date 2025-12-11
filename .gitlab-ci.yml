@@ -1,0 +1,206 @@
+# .gitlab-ci.yml
+# CI/CD Pipeline for Snip Assist Microservices
+
+stages:
+  - test_bot
+  - test_api
+  - test_rag
+  - build_bot
+  - build_api
+  - build_rag
+  - deploy # Этап деплоя может быть объединён или разделён по сервисам
+
+variables:
+  # Общая версия Python для всех сервисов
+  PYTHON_VERSION: "3.11"
+  # Registry URL (замените на ваш Docker registry, если не GitLab)
+  # CI_REGISTRY_IMAGE будет содержать путь к репозиторию в GitLab
+  # Для каждого сервиса будет: $CI_REGISTRY_IMAGE/bot, $CI_REGISTRY_IMAGE/api, $CI_REGISTRY_IMAGE/rag
+  # Но GitLab Container Registry обычно использует $CI_REGISTRY_IMAGE как базовый путь для тегов
+  # Поэтому теги будут: $CI_REGISTRY_IMAGE:bot-latest, $CI_REGISTRY_IMAGE:api-latest, $CI_REGISTRY_IMAGE:rag-latest
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+# --- Общие блоки (Templates) ---
+
+.docker_build_template: &docker_build_definition
+  image: docker:24.0.6
+  services:
+    - docker:24.0.6-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  after_script:
+    - docker logout $CI_REGISTRY
+
+# --- Тестирование ---
+
+
+test_bot:
+  stage: test_bot
+  image: python:$PYTHON_VERSION
+  before_script:
+    - python --version
+    - pip install -r requirements.bot.txt # Используем зависимости бота
+  script:
+    - pytest --cov=app --cov-report=xml tests/ # Запускаем тесты для бота
+  coverage: '/TOTAL.*\s(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - coverage.xml
+  only:
+    - merge_requests
+    - main
+
+test_api:
+  stage: test_api
+  image: python:$PYTHON_VERSION
+  before_script:
+    - python --version
+    - pip install -r requirements.api.txt # Используем зависимости API
+  script:
+    # Добавьте сюда тесты для API, если они есть (например, tests/api_tests/)
+    # - pytest --cov=api --cov-report=xml tests/api_tests/
+    # Пока запустим заглушку, чтобы показать структуру
+    - echo "Running tests for API service..."
+    # - pytest tests/api_tests/ # Пример реального запуска
+  # coverage: '/TOTAL.*\s(\d+%)$/' # Покрытие, если тесты есть
+  # artifacts:
+  #   reports:
+  #     coverage_report:
+  #       coverage_format: cobertura
+  #       path: api_coverage.xml
+  #   paths:
+  #     - api_coverage.xml
+  only:
+    - merge_requests
+    - main
+
+test_rag:
+  stage: test_rag
+  image: python:$PYTHON_VERSION
+  before_script:
+    - python --version
+    # Устанавливаем зависимости RAG, так как тесты могут требовать LlamaIndex/Chroma
+    - pip install -r requirements.rag.txt
+  script:
+    # Добавьте сюда тесты для RAG, если они есть (например, tests/rag_tests/)
+    # - pytest --cov=rag --cov-report=xml tests/rag_tests/
+    # Пока запустим заглушку, чтобы показать структуру
+    - echo "Running tests for RAG service..."
+    # - pytest tests/rag_tests/ # Пример реального запуска
+  # coverage: '/TOTAL.*\s(\d+%)$/' # Покрытие, если тесты есть
+  # artifacts:
+  #   reports:
+  #     coverage_report:
+  #       coverage_format: cobertura
+  #       path: rag_coverage.xml
+  #   paths:
+  #     - rag_coverage.xml
+  only:
+    - merge_requests
+    - main
+
+# --- Сборка Docker-образов ---
+
+
+build_bot:
+  stage: build_bot
+  <<: *docker_build_definition
+  script:
+    - docker build -f Dockerfile.bot -t $CI_REGISTRY_IMAGE:bot-${CI_COMMIT_SHORT_SHA} .
+    - docker push $CI_REGISTRY_IMAGE:bot-${CI_COMMIT_SHORT_SHA}
+    # Опционально: Запушить тег latest для ветки main
+    - |
+      if [ "$CI_COMMIT_REF_NAME" = "main" ]; then
+        docker tag $CI_REGISTRY_IMAGE:bot-${CI_COMMIT_SHORT_SHA} $CI_REGISTRY_IMAGE:bot-latest
+        docker push $CI_REGISTRY_IMAGE:bot-latest
+      fi
+  only:
+    - merge_requests
+    - main
+
+build_api:
+  stage: build_api
+  <<: *docker_build_definition
+  script:
+    - docker build -f Dockerfile.api -t $CI_REGISTRY_IMAGE:api-${CI_COMMIT_SHORT_SHA} .
+    - docker push $CI_REGISTRY_IMAGE:api-${CI_COMMIT_SHORT_SHA}
+    # Опционально: Запушить тег latest для ветки main
+    - |
+      if [ "$CI_COMMIT_REF_NAME" = "main" ]; then
+        docker tag $CI_REGISTRY_IMAGE:api-${CI_COMMIT_SHORT_SHA} $CI_REGISTRY_IMAGE:api-latest
+        docker push $CI_REGISTRY_IMAGE:api-latest
+      fi
+  only:
+    - merge_requests
+    - main
+
+build_rag:
+  stage: build_rag
+  <<: *docker_build_definition
+  script:
+    - docker build -f Dockerfile.rag -t $CI_REGISTRY_IMAGE:rag-${CI_COMMIT_SHORT_SHA} .
+    - docker push $CI_REGISTRY_IMAGE:rag-${CI_COMMIT_SHORT_SHA}
+    # Опционально: Запушить тег latest для ветки main
+    - |
+      if [ "$CI_COMMIT_REF_NAME" = "main" ]; then
+        docker tag $CI_REGISTRY_IMAGE:rag-${CI_COMMIT_SHORT_SHA} $CI_REGISTRY_IMAGE:rag-latest
+        docker push $CI_REGISTRY_IMAGE:rag-latest
+      fi
+  only:
+    - merge_requests
+    - main
+
+# --- Деплой ---
+# Этот пример предполагает деплой на платформу, управляющуюся через CLI (например, Fly.io, Railway)
+# или через k8s. Конкретная реализация зависит от инфраструктуры.
+# Ниже пример для Fly.io, адаптированный под микросервисы (псевдокод, так как flyctl не управляет compose напрямую).
+# Более реалистичный сценарий - деплой в k8s или обновление compose на удалённом хосте.
+
+deploy:
+  stage: deploy
+  image: docker:24.0.6 # Может потребоваться image с flyctl или kubectl
+  before_script:
+    # Установка flyctl или других инструментов деплоя
+    # - curl -L https://fly.io/install.sh | sh
+    # - export FLYCTL_INSTALL="/root/.fly"
+    # - export PATH="$FLYCTL_INSTALL/bin:$PATH"
+    # Аутентификация (токен должен быть сохранён как CI/CD переменная)
+    # - flyctl auth set $FLY_API_TOKEN # Пример для Fly.io
+    # Для k8s: установка kubectl, настройка kubeconfig
+    - echo "Setting up deployment tools..."
+  script:
+    # Пример для Fly.io: управление каждым сервисом отдельно через fly.toml в подкаталогах
+    # или через flyctl deploy с указанием образа.
+    # Это сложнее, чем один проект. Часто используют k8s, ECS, или собственные скрипты.
+    # Ниже - псевдокод для демонстрации.
+    - echo "Deploying services..."
+    # - flyctl deploy --image $CI_REGISTRY_IMAGE:bot-latest --config fly-bot.toml # Требует fly.toml для бота
+    # - flyctl deploy --image $CI_REGISTRY_IMAGE:api-latest --config fly-api.toml # Требует fly.toml для api
+    # - flyctl deploy --image $CI_REGISTRY_IMAGE:rag-latest --config fly-rag.toml # Требует fly.toml для rag
+    # Пример для удалённого хоста с docker-compose:
+    # - scp docker-compose.yml user@remote:/path/to/project/
+    # - scp .env.local user@remote:/path/to/project/ # Убедитесь, что .env.local настроен на проде
+    # - ssh user@remote "cd /path/to/project && docker-compose pull && docker-compose up -d"
+    # Пример для k8s (с предварительной настройкой kubectl context):
+    # - sed -i "s|IMAGE_TAG|${CI_COMMIT_SHORT_SHA}|g" k8s/bot-deployment.yaml
+    # - kubectl apply -f k8s/bot-deployment.yaml
+    # - sed -i "s|IMAGE_TAG|${CI_COMMIT_SHORT_SHA}|g" k8s/api-deployment.yaml
+    # - kubectl apply -f k8s/api-deployment.yaml
+    # - sed -i "s|IMAGE_TAG|${CI_COMMIT_SHORT_SHA}|g" k8s/rag-deployment.yaml
+    # - kubectl apply -f k8s/rag-deployment.yaml
+    # Пока оставим заглушку
+    - echo "Deploying updated images to production environment (implementation depends on target platform)..."
+    - echo "Bot image: $CI_REGISTRY_IMAGE:bot-${CI_COMMIT_SHORT_SHA}"
+    - echo "API image: $CI_REGISTRY_IMAGE:api-${CI_COMMIT_SHORT_SHA}"
+    - echo "RAG image: $CI_REGISTRY_IMAGE:rag-${CI_COMMIT_SHORT_SHA}"
+  only:
+    - main
+  when: manual # Деплой вручную, чтобы избежти случайных публикаций
+  environment:
+    name: production
+    # url: https://your-app.fly.dev # URL production окружения, если применимо
