@@ -16,7 +16,7 @@ class Settings:
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN")
 
     # --- Query Limits and Validation ---
-    FREE_QUERIES_PER_DAY: int = int(os.getenv("FREE_QUERIES_PER_DAY", 3))
+    FREE_QUERIES_PER_DAY: int = int(os.getenv("FREE_QUERIES_PER_DAY", 300))
     MAX_QUERY_LENGTH: int = int(os.getenv("MAX_QUERY_LENGTH", 500))
 
     # --- Database Configuration ---

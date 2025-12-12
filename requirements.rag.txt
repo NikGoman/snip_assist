@@ -1,27 +1,49 @@
-# requirements.rag.txt
 # Зависимости для сервиса RAG (rag/)
 
-# FastAPI и ASGI сервер (если rag сам запускает FastAPI приложение)
-# fastapi>=0.115.0
-# uvicorn[standard]>=0.32.0
-
-# LlamaIndex и его компоненты
-llama-index>=0.12.4
-llama-index-vector-stores-chroma>=0.4.2
-# Выбор LLM зависит от реализации. Мы использовали TransformersLLM.
+# ASGI сервер
+uvicorn[standard]>=0.32.0
+# FastAPI (добавлено!)
+fastapi>=0.124.0
+# LlamaIndex Core и его компоненты
+llama-index-core>=0.13.0
+llama-index-embeddings-huggingface>=0.2.0
 llama-index-llms-huggingface>=0.2.0
-# Если бы использовался llama-cpp-python, было бы:
-# llama-index-llms-llama-cpp>=0.3.0 # (или другая версия)
+llama-index-vector-stores-chroma>=0.1.0
 
 # Pydantic для валидации данных
-# pydantic>=2.5.0
-# pydantic-settings>=2.1.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
 
 # python-dotenv для загрузки переменных окружения из .env файлов
-# python-dotenv>=1.0.0
+python-dotenv>=1.0.0
 
-# (Опционально) Дополнительные библиотеки, которые могут потребоваться LlamaIndex или Chroma
-# numpy>=1.21.0 # Обычно устанавливается как зависимость
-# pandas>=1.3.0 # Обычно устанавливается как зависимость
+# Основные зависимости для LlamaIndex и RAG
+transformers>=4.30.0
+torch>=2.0.0
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+numpy>=1.21.0
+pandas>=2.0.0
 
-# chromadb>=0.4.0 # <-- УБРАНО, так как llama-index-vector-stores-chroma уже зависит от chromadb
+# Дополнительные зависимости для работы LLM и эмбеддингов
+accelerate>=0.20.0 # Для эффективной загрузки моделей HuggingFace
+scikit-learn>=1.3.0 # Может потребоваться для некоторых эмбеддингов
+scipy>=1.11.0
+
+# Зависимости для HTTP-клиентов и веб-работы (могут быть косвенно необходимы)
+aiohttp>=3.8.0
+httpx>=0.24.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Зависимости для работы с токенами и OpenAI (если используется API)
+openai>=1.10.0
+tiktoken>=0.5.0
+
+# Прочие полезные зависимости
+psutil>=5.9.0
+rich>=13.0.0
+click>=8.1.0
+anyio>=3.6.0
+typing-extensions>=4.5.0

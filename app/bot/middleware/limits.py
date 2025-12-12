@@ -38,7 +38,9 @@ class LimitsMiddleware(BaseMiddleware):
 
             if not limit_check["allowed"]:
                 # Лимит превышен. Отправляем сообщение пользователю.
-                await event.answer(limit_check["message"])
+                # Используем HTML режим и экранируем спецсимволы для безопасности
+                import html
+                await event.answer(html.escape(limit_check["message"]), parse_mode="HTML")
                 # Прерываем цепочку обработки, возвращая None.
                 return
 

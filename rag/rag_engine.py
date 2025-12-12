@@ -1,9 +1,9 @@
 """
-RAG Engine Module (Updated)
+RAG Engine Module (Updated for llama-index-core >= 0.13.0)
 
 This module encapsulates the core logic for the Retrieval-Augmented Generation (RAG) system
-using LlamaIndex and Chroma. It handles document loading, indexing, storage, and querying.
-This version is adapted to use TransformersLLM with HuggingFace models and torch,
+using LlamaIndex (core + integrations) and Chroma. It handles document loading, indexing,
+storage, and querying. This version is adapted to use HuggingFace models and torch,
 and provides an asynchronous query method, aligning more closely with the original rag.py.
 """
 
@@ -15,10 +15,17 @@ from llama_index.core import (
     Settings,
 )
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+# ИМПОРТ ИЗМЕНЕН: Теперь используем интеграционный пакет llama-index-llms-huggingface
 from llama_index.llms.huggingface import HuggingFaceLLM as TransformersLLM
+# ИМПОРТ ИЗМЕНЕН: В новых версиях llama-index интеграции с HuggingFace находятся в отдельных пакетах
+try:
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+except ImportError:
+    # Альтернативный импорт для новых версий llama-index
+    from llama_index.core.embeddings import HuggingFaceEmbedding
+# ИМПОРТ ИЗМЕНЕН: Теперь используем интеграционный пакет llama-index-vector-stores-chroma
+from llama_index.vector_stores.chroma import ChromaVectorStore
+
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import chromadb
@@ -29,77 +36,15 @@ from rag.config import get_rag_config
 logger = logging.getLogger(__name__)
 config = get_rag_config()
 
-# --- Updated Configuration to Match Original rag.py ---
-# We need to map the new config keys to the old ones expected by the original logic.
-# Or, preferably, update the original logic to use the new config structure.
-# For this update, we'll assume the new config has keys that map to the old ones,
-# or that the original logic will be updated to use the new config.
-# However, for direct compatibility, we might need specific keys.
-# Let's assume the new config defines the following keys which are compatible:
-# CHROMA_PERSIST_DIR, MODEL_NAME (or LLM_MODEL_HF_PATH), EMBEDDING_MODEL_NAME, etc.
-
-# Example mapping if needed:
-# CHROMA_PERSIST_DIR -> settings.CHROMA_PERSIST_DIR
-# MODEL_NAME -> settings.MODEL_NAME (or LLM_MODEL_HF_PATH)
-# EMBEDDING_MODEL_NAME -> settings.EMBEDDING_MODEL_NAME (or a specific key for HF embeds)
-
-# For now, let's use the new config names and adjust the original rag.py logic later if needed.
-# The new config defines:
-# CHROMA_PERSIST_DIR
-# CHROMA_COLLECTION_NAME
-# LLM_MODEL_HF_PATH (NEW - assuming we add this for HF models)
-# EMBEDDING_MODEL_NAME
-# CHUNK_SIZE, CHUNK_OVERLAP
-# DEFAULT_TOP_K
-
-# We need to add LLM_MODEL_HF_PATH to rag/config.py for this to work directly.
-# Let's assume it's added or use a fallback name like LLM_MODEL_PATH for HF too.
-# Or define it here based on the original rag.py settings.MODEL_NAME logic.
-# For this example, let's assume the config has MODEL_NAME for HF model.
-# If not, we need to add it to config.py.
-
-# Let's assume the config file is updated to have a key for the HF model path
-# e.g., in rag/config.py, add: LLM_MODEL_HF_PATH: str = "microsoft/Phi-3-mini-4k-instruct"
-# Or reuse LLM_MODEL_PATH if it's intended for HF models too, but that's confusing with GGUF.
-# Best practice: Add a new specific key.
-# For this code, I'll assume a new key `LLM_HF_MODEL_NAME` exists in the config.
-# If it doesn't exist, it will fall back to a default or raise an error based on Pydantic settings.
-# Let's define it as a hypothetical key for this example and note that config.py needs to be updated.
-# Hypothetical key in config: LLM_HF_MODEL_NAME
-# HF_MODEL_NAME = config.LLM_HF_MODEL_NAME # This would be the preferred way
-# For now, to align with original rag.py which used settings.MODEL_NAME,
-# let's assume our new config also has a MODEL_NAME field for the HF model.
-# If the original settings.py had MODEL_NAME = "microsoft/Phi-3-mini-4k-instruct",
-# then our new rag/config.py should have something equivalent.
-# Let's assume `config.MODEL_NAME_HF` or similar is added, or we reuse a generic name.
-# The most direct alignment is if `rag_config.MODEL_NAME` (or a new key) holds the HF model identifier.
-# Let's use a fallback mechanism or a new key.
-# NEW ASSUMPTION: The rag/config.py will have a key like `HF_LLM_MODEL_NAME` or `MODEL_NAME_HF`.
-# If not, we can default to the old `settings.MODEL_NAME` path by importing it.
-# However, the goal is to make rag independent. So config.py must be updated.
-
 # --- CRITICAL: Update rag/config.py ---
 # Add the following to rag/config.py:
 # # Model name for HuggingFace TransformersLLM
 # HF_LLM_MODEL_NAME: str = "microsoft/Phi-3-mini-4k-instruct" # Example default
-# Or reuse LLM_MODEL_PATH if it's meant to be generic, but clarify its purpose.
-# Let's assume a new key `HF_LLM_MODEL_NAME` is added to rag/config.py.
-# For this code to run, you must add this line to rag/config.py:
-# HF_LLM_MODEL_NAME: str = "microsoft/Phi-3-mini-4k-instruct" # Or your specific model
-
-# Attempting to get the HF model name from the new config.
-# This will fail if the key `HF_LLM_MODEL_NAME` is not added to rag/config.py.
-# --- PLACEHOLDER UNTIL CONFIG IS UPDATED ---
 try:
-    HF_MODEL_NAME = config.HF_LLM_MODEL_NAME # This key must exist in rag/config.py
+    HF_MODEL_NAME = config.HF_LLM_MODEL_NAME  # This key must exist in rag/config.py
 except AttributeError:
     logger.error("Configuration key 'HF_LLM_MODEL_NAME' not found in rag/config.py. Please add it.")
-    # Fallback: try to use the original settings if accessible, or raise an error.
-    # The cleanest way is to ensure rag/config.py is updated.
-    # For now, let's raise an error to indicate the config needs updating.
     raise AttributeError("Configuration key 'HF_LLM_MODEL_NAME' is missing in rag/config.py. Please add it (e.g., HF_LLM_MODEL_NAME: str = 'microsoft/Phi-3-mini-4k-instruct').")
-
-# --- /CRITICAL ---
 
 class QueryResponse(BaseModel):
     """Model representing the response from the RAG query."""
@@ -112,6 +57,7 @@ class RAGEngine:
     Encapsulates the RAG logic: loading/indexing documents and querying them.
     Uses LlamaIndex abstractions for modularity and flexibility.
     Updated to use TransformersLLM and provide async query.
+    Compatible with llama-index-core >= 0.13.0 and integration packages.
     """
 
     def __init__(self):
@@ -142,7 +88,7 @@ class RAGEngine:
             model = AutoModelForCausalLM.from_pretrained(
                 HF_MODEL_NAME,
                 torch_dtype=torch.float16,
-                device_map="auto", # Automatically assign layers to available devices (CPU/GPU)
+                device_map="auto",  # Automatically assign layers to available devices (CPU/GPU)
                 trust_remote_code=True,
                 # pad_token_id=tokenizer.eos_token_id, # Often required for generation
             )
@@ -151,10 +97,10 @@ class RAGEngine:
             self._llm = TransformersLLM(
                 model=model,
                 tokenizer=tokenizer,
-                context_window=config.LLM_CONTEXT_WINDOW, # Use the context window from config
-                max_new_tokens=512, # Keep original value from rag.py
-                generate_kwargs={"temperature": 0.1}, # Keep original value from rag.py
-                device_map="auto" # Pass device_map to LlamaIndex wrapper if needed, often handled by model
+                context_window=config.LLM_CONTEXT_WINDOW,  # Use the context window from config
+                max_new_tokens=512,  # Keep original value from rag.py
+                generate_kwargs={"temperature": 0.1},  # Keep original value from rag.py
+                device_map="auto"  # Pass device_map to LlamaIndex wrapper if needed, often handled by model
             )
             logger.info(f"LLM loaded from HuggingFace: {HF_MODEL_NAME}")
         except Exception as e:
@@ -167,6 +113,7 @@ class RAGEngine:
             self._chroma_collection = self._client.get_or_create_collection(
                 config.CHROMA_COLLECTION_NAME
             )
+            # ИМПОРТ ПЕРЕМЕЩЕН: Импорт ChromaVectorStore теперь на уровне модуля, т.к. он из интеграционного пакета
             self._vector_store = ChromaVectorStore(chroma_collection=self._chroma_collection)
             logger.info(f"Chroma vector store initialized at {config.CHROMA_PERSIST_DIR}, collection: {config.CHROMA_COLLECTION_NAME}")
         except Exception as e:
@@ -177,17 +124,10 @@ class RAGEngine:
         # This ensures that the LLM and Embed Model are used globally by LlamaIndex components
         Settings.llm = self._llm
         Settings.embed_model = self._embed_model
-        # Consider if SentenceSplitter settings from config are needed here
-        # If CHUNK_SIZE/CHUNK_OVERLAP are intended for LlamaIndex's default parser:
         # Settings.node_parser = SentenceSplitter(chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
-        # If not, keep the default or set it when creating the index from documents.
-        # The original rag.py didn't seem to explicitly set the parser during index load,
-        # so the default might be fine, or we might need to pass it to `from_vector_store`.
-        # `from_vector_store` typically doesn't re-parse, it loads existing vectors.
-        # Parsing happens during `from_documents`.
-        # For `load_index`, we assume vectors are already built correctly.
-        # So, Settings.node_parser might not be needed here for loading, only for rebuilding.
-        # Let's omit it from Settings here for loading, and set it if rebuilding.
+        # ^ Uncomment if you want to set a global default parser for LlamaIndex operations.
+        # For loading an existing index from Chroma, the global parser might not be relevant.
+        # It's more relevant when creating an index from documents using from_documents().
 
     def _build_query_engine(self, top_k: int = 3, response_mode: str = "tree_summarize"):
         """
@@ -202,8 +142,8 @@ class RAGEngine:
         # This method encapsulates the retriever and response synthesis.
         self._query_engine = self._index.as_query_engine(
             llm=self._llm,
-            similarity_top_k=top_k, # Use provided top_k, defaulting to 3 as in original
-            response_mode=response_mode, # Use provided response_mode, defaulting as in original
+            similarity_top_k=top_k,  # Use provided top_k, defaulting to 3 as in original
+            response_mode=response_mode,  # Use provided response_mode, defaulting as in original
             # Additional parameters can be passed here if needed
         )
         logger.info("Query engine built successfully using as_query_engine.")
@@ -219,7 +159,7 @@ class RAGEngine:
             # This is the key call from the original rag.py
             self._index = VectorStoreIndex.from_vector_store(
                 vector_store=self._vector_store,
-                show_progress=True # Keep original behavior
+                show_progress=True  # Keep original behavior
             )
 
             # Build the query engine with default parameters from the original rag.py
@@ -233,8 +173,8 @@ class RAGEngine:
             self._index = None
             # Depending on requirements, you might still raise or just log.
             # The original rag.py allows self.index = None and checks it in query.
-            # For a service, raising might be preferred, but for compatibility, we log.
-            # Let's raise to prevent a broken state, but the caller (e.g., main.py) should handle it.
+            # For a service, raising might be preferred, but the caller (e.g., main.py) should handle it.
+            # Let's raise to prevent a broken state, but the caller should handle it.
             raise RuntimeError(f"Index loading failed: {e}") from e
 
     def rebuild_index(self, data_dir: str):
@@ -261,11 +201,11 @@ class RAGEngine:
             logger.info("Building index and storing vectors in Chroma...")
             self._index = VectorStoreIndex.from_documents(
                 documents=documents,
-                storage_context=None, # Use default, which connects to vector_store
+                storage_context=None,  # Use default, which connects to vector_store
                 vector_store=self._vector_store,
                 embed_model=self._embed_model,
                 show_progress=True,
-                transformations=[parser] # Apply the sentence splitter
+                transformations=[parser]  # Apply the sentence splitter
             )
 
             # 3. Build the query engine for the newly created index
@@ -297,7 +237,7 @@ class RAGEngine:
             return QueryResponse(response_text=error_msg, source_nodes=[])
 
         if top_k is None:
-            top_k = 3 # Default as per original
+            top_k = 3  # Default as per original
 
         logger.info(f"Processing query (top_k={top_k}): {query_text[:50]}...")
 
@@ -309,10 +249,10 @@ class RAGEngine:
             # --- Replicate Source Formatting from Original rag.py ---
             source_nodes_info = []
             sources_lines = []
-            for node_with_score in response_obj.source_nodes[:2]: # Take top 2 as per original
+            for node_with_score in response_obj.source_nodes[:2]:  # Take top 2 as per original
                 node = node_with_score.node
                 metadata = node.metadata
-                doc_title = metadata.get("file_name", "Документ") # Use 'file_name' as in original
+                doc_title = metadata.get("file_name", "Документ")  # Use 'file_name' as in original
                 page = metadata.get("page_label", "N/A")          # Use 'page_label' as in original
                 sources_lines.append(f"- {doc_title} (стр. {page})")
 

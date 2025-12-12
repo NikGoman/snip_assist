@@ -40,11 +40,15 @@ class LoggingMiddleware(BaseMiddleware):
         if isinstance(event, Message):
             user: User = event.from_user
             chat_id = event.chat.id
+            # Безопасно получаем текст сообщения, проверяя на None
             text = event.text or (event.caption if hasattr(event, 'caption') else '<no_text>')
+
+            # Безопасно обрезаем текст, если он не None
+            text_preview = f"'{text[:50]}...'" if text else "'<no_text>'"
 
             logger.info(
                 f"Получено сообщение от user_id={user.id} (@{user.username or 'N/A'}) "
-                f"в чате chat_id={chat_id}. Текст: '{text[:50]}...'"
+                f"в чате chat_id={chat_id}. Текст: {text_preview}"
             )
 
         # Вызываем следующий обработчик
@@ -55,6 +59,8 @@ class LoggingMiddleware(BaseMiddleware):
             return result
         except Exception as e:
             # Логируем ошибку, если она произошла в обработчике
-            logger.error(f"Ошибка в обработчике для user_id={user.id if user else 'unknown'}: {e}")
+            # Безопасно получаем user_id, если user существует
+            user_id = getattr(data.get('event_from_user'), 'id', 'unknown') if data.get('event_from_user') else 'unknown'
+            logger.error(f"Ошибка в обработчике для user_id={user_id}: {e}")
             # Передаём ошибку дальше, чтобы другие обработчики могли её обработать
             raise

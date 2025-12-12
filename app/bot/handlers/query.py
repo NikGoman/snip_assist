@@ -10,6 +10,7 @@ from aiogram import Router
 from aiogram.types import Message
 from app.services.query_service import QueryService
 import logging
+import html
 
 router = Router()
 service = QueryService()
@@ -50,7 +51,8 @@ async def handle_query(message: Message):
 
     # Send the response received from the QueryService (originally from RAG via API)
     # to the user.
-    await message.answer(response)
+    # Используем HTML режим и экранируем спецсимволы для безопасности
+    await message.answer(html.escape(response), parse_mode="HTML")
     logger.info(f"Response sent to user_id={message.from_user.id}.")
 
 # Example of how it might look if limits were checked here (not the current approach):
@@ -72,5 +74,5 @@ async def handle_query(message: Message):
 #         await message.answer(response)
 #         await service.increment_usage(user_id) # Increment AFTER successful response
 #     except Exception as e:
-#         logger.error(f"Error processing query for user {user_id}: {e}")
+#         logger.error(f"Error processing query for user {id}: {e}")
 #         await message.answer("Произошла ошибка при обработке запроса.")
