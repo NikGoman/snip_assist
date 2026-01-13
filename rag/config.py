@@ -10,7 +10,7 @@ import os
 from typing import Optional
 from pathlib import Path
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import logging
 
@@ -24,6 +24,7 @@ else:
     if env_file_path == ".env.local":
         logging.warning(f"Environment file {env_file_path} not found, relying on system environment variables")
 
+
 class RAGConfig(BaseSettings):
     """
     Configuration class for the RAG service.
@@ -36,32 +37,33 @@ class RAGConfig(BaseSettings):
     # ChromaDB collection name for storing document embeddings
     CHROMA_COLLECTION_NAME: str = "construction_docs"
 
-    # --- LLM Configuration for HuggingFace TransformersLLM ---
-    # Model name or path for the HuggingFace LLM (e.g., Phi-3-mini)
-    # This path should be accessible within the container or a HuggingFace hub model ID
-    HF_LLM_MODEL_NAME: str = "microsoft/Phi-3-mini-4k-instruct"  # Example default
+    # --- LLM Configuration for LlamaCPP ---
+    # Path to the GGUF model file for LlamaCPP
+    LLM_MODEL_PATH: str = "./models/Phi-3-mini-4k-instruct-q4.gguf"
 
-    # Context window size for the LLM (optional, can be inferred from model, but good to set)
+    # Context window size for the LLM
     LLM_CONTEXT_WINDOW: int = 4096
+
+    # Максимальное количество новых токенов для генерации
+    LLM_MAX_NEW_TOKENS: int = 512
 
     # --- Embedding Model Configuration ---
     # Name or path for the embedding model (e.g., a sentence-transformers model)
     # This can be a Hugging Face model name or a local path
-    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_MODEL_NAME: str = "./models/embeddings/e5-base-en-ru"
 
-    # Dimension of the embeddings (e.g., 384 for all-MiniLM-L6-v2, 768 for all-mpnet-base-v2)
-    # It's good practice to define this if it's static for your model choice
+    # Dimension of the embeddings
     EMBEDDING_DIM: int = 384
 
     # --- LlamaIndex Specific Configuration ---
     # Chunk size for splitting documents before indexing
-    CHUNK_SIZE: int = 512
+    CHUNK_SIZE: int = 128
 
     # Chunk overlap for splitting documents
-    CHUNK_OVERLAP: int = 50
+    CHUNK_OVERLAP: int = 64
 
     # --- Service Configuration ---
-    # Port the RAG service will run on inside the container (e.g., used by uvicorn in main.py)
+    # Port the RAG service will run on inside the container
     SERVICE_PORT: int = 8001
 
     # Host the RAG service will bind to inside the container
@@ -69,11 +71,6 @@ class RAGConfig(BaseSettings):
 
     # Default top_k value for retrieving relevant nodes from the index
     DEFAULT_TOP_K: int = 5
-
-    # --- Advanced LLM Settings (Optional, can be added later) ---
-    # Example:
-    # LLM_TEMPERATURE: float = 0.1
-    # LLM_MAX_NEW_TOKENS: int = 256
 
     # --- Validation methods ---
     @field_validator('CHROMA_PERSIST_DIR')
@@ -100,7 +97,7 @@ class RAGConfig(BaseSettings):
             raise ValueError(f"Port {v} is not within valid range (1-65535)")
         return v
 
-    @field_validator('CHUNK_SIZE', 'CHUNK_OVERLAP', 'EMBEDDING_DIM', 'LLM_CONTEXT_WINDOW')
+    @field_validator('CHUNK_SIZE', 'CHUNK_OVERLAP', 'EMBEDDING_DIM', 'LLM_CONTEXT_WINDOW', 'LLM_MAX_NEW_TOKENS')
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         """Validate that integer values are positive."""
@@ -129,31 +126,31 @@ class RAGConfig(BaseSettings):
 
         return self
 
-    class Config:
-        # By default, Pydantic BaseSettings looks for environment variables
-        # This tells it to be case-insensitive when matching env vars
-        case_sensitive = False
-        # Allow extra fields if defined in .env but not in the model (optional, can be useful)
-        # extra = "allow"
+    # Используем ConfigDict вместо устаревшего class Config
+    model_config = SettingsConfigDict(case_sensitive=False)
 
 
-# Instantiate the configuration object
-# This will load the settings from environment variables or defaults
-rag_config = RAGConfig()
+# --- Ленивая инициализация ---
+# Глобальная переменная для хранения экземпляра конфигурации
+_config_instance: Optional[RAGConfig] = None
 
-# Convenience function to get the config object
+
 def get_rag_config() -> RAGConfig:
     """
     Returns the singleton instance of RAGConfig.
+    Initializes the config on first call, avoiding module-level side effects.
 
     Returns:
         RAGConfig: The configuration object with validated settings
     """
-    return rag_config
+    global _config_instance
+    if _config_instance is None:
+        _config_instance = RAGConfig()
+    return _config_instance
 
 
 # Example usage within rag modules:
 # from rag.config import get_rag_config
 # config = get_rag_config()
 # persist_dir = config.CHROMA_PERSIST_DIR
-# model_path = config.HF_LLM_MODEL_NAME
+# model_path = config.LLM_MODEL_PATH
